@@ -1,0 +1,7 @@
+{
+  "name": "Eldritch Arts Simulator",
+  "description": "A Doctor Strange inspired magic circle simulator using MediaPipe Hands and Canvas. Summons procedural geometries and particles based on hand gestures.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
