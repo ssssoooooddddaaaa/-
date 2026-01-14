@@ -111,6 +111,7 @@ const MagicOverlay: React.FC<MagicOverlayProps> = ({ width, height }) => {
   const [editPrompt, setEditPrompt] = useState<string>("");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Game UI State
   const [uiScore, setUiScore] = useState(0);
@@ -196,12 +197,24 @@ const MagicOverlay: React.FC<MagicOverlayProps> = ({ width, height }) => {
           setCapturedImage(dataUrl);
           setGeneratedImage(null);
           setEditPrompt("Turn the magic effects into realistic fire and lightning");
+          setGenerationError(null);
           setIsEditing(true);
       }
   };
 
   const handleGenerate = async () => {
-      if (!capturedImage || !process.env.API_KEY) return;
+      setGenerationError(null);
+      
+      if (!process.env.API_KEY) {
+          setGenerationError("API Key missing. Please configure GEMINI_API_KEY environment variable. / 未配置 API 密钥");
+          return;
+      }
+      
+      if (!capturedImage) {
+          setGenerationError("No image captured. / 未捕获图像");
+          return;
+      }
+      
       setIsGenerating(true);
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -220,16 +233,23 @@ const MagicOverlay: React.FC<MagicOverlayProps> = ({ width, height }) => {
           // Look for image in response
           const candidates = response.candidates;
           if (candidates && candidates.length > 0) {
+             let imageFound = false;
              for (const part of candidates[0].content.parts) {
                  if (part.inlineData) {
                      setGeneratedImage(`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`);
+                     imageFound = true;
                      break;
                  }
              }
+             if (!imageFound) {
+                 setGenerationError("No image returned from model. / 模型未返回图像");
+             }
+          } else {
+             setGenerationError("Empty response from AI. / AI 响应为空");
           }
-      } catch (e) {
+      } catch (e: any) {
           console.error("Gemini Generation Error:", e);
-          setEditPrompt("Generation failed. Please try again.");
+          setGenerationError(`Generation failed: ${e.message || "Unknown error"}`);
       } finally {
           setIsGenerating(false);
       }
@@ -1447,21 +1467,28 @@ const MagicOverlay: React.FC<MagicOverlayProps> = ({ width, height }) => {
                              </div>
                          </div>
                          
-                         <div className="flex gap-2">
-                             <input 
-                                type="text" 
-                                value={editPrompt}
-                                onChange={(e) => setEditPrompt(e.target.value)}
-                                placeholder="Desribe how to warp reality (e.g. 'Turn monsters into glitch art')..."
-                                className="flex-1 bg-black/50 border border-white/20 rounded px-4 py-2 text-white focus:border-amber-500 outline-none"
-                             />
-                             <button 
-                                onClick={handleGenerate}
-                                disabled={isGenerating}
-                                className={`px-4 py-2 bg-amber-600 hover:bg-amber-500 text-black font-bold rounded transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                             >
-                                {isGenerating ? '咏唱中...' : '生成'}
-                             </button>
+                         <div className="flex flex-col gap-2">
+                             <div className="flex gap-2">
+                                 <input 
+                                    type="text" 
+                                    value={editPrompt}
+                                    onChange={(e) => setEditPrompt(e.target.value)}
+                                    placeholder="Desribe how to warp reality (e.g. 'Turn monsters into glitch art')..."
+                                    className="flex-1 bg-black/50 border border-white/20 rounded px-4 py-2 text-white focus:border-amber-500 outline-none"
+                                 />
+                                 <button 
+                                    onClick={handleGenerate}
+                                    disabled={isGenerating}
+                                    className={`px-4 py-2 bg-amber-600 hover:bg-amber-500 text-black font-bold rounded transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                 >
+                                    {isGenerating ? '咏唱中...' : '生成'}
+                                 </button>
+                             </div>
+                             {generationError && (
+                                <div className="text-red-500 text-xs font-bold bg-black/50 p-2 rounded border border-red-500/50">
+                                    Error: {generationError}
+                                </div>
+                             )}
                          </div>
                     </div>
 
